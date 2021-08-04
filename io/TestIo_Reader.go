@@ -25,7 +25,6 @@ func readString()  {
 		for i,value := range data{
 			fmt.Printf("index:%d,value:%d \n",i,value)
 		}
-
 		//将byte[]数组转换为string
 		println("将byte[]数组转换为string",string(data))
 	}
