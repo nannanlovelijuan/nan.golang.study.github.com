@@ -1,14 +1,18 @@
 package main
 
 import (
+	"crypto/tls"
 	"flag"
 	"fmt"
 	"github.com/fatih/color"
 	"log"
+	"net/http"
+	"net/http/httptrace"
 	"net/url"
 	"os"
 	"runtime"
 	"strings"
+	"time"
 )
 
 const (
@@ -73,6 +77,7 @@ func init() {
 	flag.Usage = usage
 }
 
+/* 惯用法 */
 func usage() {
 	fmt.Fprintf(os.Stderr, "Usage: %s [OPTIONS] URL \n\n", os.Args[0])
 	fmt.Fprintln(os.Stderr, "OPTIONS:")
@@ -106,9 +111,9 @@ func main() {
 
 	args := flag.Args()
 
-	fmt.Printf("flag.Args[0:]------>,%s\n", args)
 	fmt.Printf("os.Args[0:]------>,%s\n", os.Args[0:])
 	fmt.Printf("os.Args[1:]------>,%s\n", os.Args[1:])
+	fmt.Printf("flag.Args[0:]------>,%s\n", args)
 	fmt.Printf("args------>%s,length------>%d\n", args, len(args))
 	if len(args) != 1 {
 		flag.Usage()
@@ -124,18 +129,61 @@ func main() {
 
 	url := parseURL(args[0])
 
-	fmt.Printf("%s",url)
+	fmt.Printf("%s", url)
 	//
-	//visit(url)
+	visit(url)
+}
+
+func visit(u *url.URL) {
+	req, err := http.NewRequest(httpMethod, u.String(), strings.NewReader("from string"))
+
+	if err != nil {
+		fmt.Printf("NewRequest %s ,err%v", u, nil)
+	}
+	var t0, t1, t2, t3, t4, t5, t6 time.Time
+
+	trace := &httptrace.ClientTrace{
+		DNSStart: func(_ httptrace.DNSStartInfo) {
+			t0 = time.Now()
+		},
+		DNSDone: func(_ httptrace.DNSDoneInfo) {
+			t1 = time.Now()
+		},
+		ConnectStart: func(_, addr string) {
+			if t1.IsZero() {
+				t1 = time.Now()
+			}
+		},
+		ConnectDone: func(_, addr string, err error) {
+			if err != nil {
+				log.Fatalf("unable to connect to host %v: %v", addr, err)
+			}
+			t2 = time.Now()
+
+			fmt.Printf("\n%s%s\n", color.GreenString("Connected to "), color.CyanString(addr) )
+		},
+		GotConn: func(_ httptrace.GotConnInfo) {
+			t3 = time.Now()
+		},
+		GotFirstResponseByte: func() {
+			t4 = time.Now()
+		},
+		TLSHandshakeStart: func() {
+			t5 = time.Now()
+		},
+		TLSHandshakeDone: func(_ tls.ConnectionState, _ error) {
+			t6 = time.Now()
+		},
+	}
 }
 
 func parseURL(uri string) *url.URL {
 	if strings.Contains(uri, "://") && !strings.HasPrefix(uri, "//") {
 		uri = "//" + uri
 	}
-	url,err := url.Parse(uri)
+	url, err := url.Parse(uri)
 
-	if err != nil{
+	if err != nil {
 		log.Fatalf("could not parse url %q: %v", uri, err)
 	}
 
@@ -148,6 +196,7 @@ func parseURL(uri string) *url.URL {
 	return url
 }
 
+//定义切片
 type headers []string
 
 func (h headers) String() string {
